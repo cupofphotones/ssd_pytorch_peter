@@ -11,6 +11,8 @@ import os.path as osp
 import torch
 import torch.utils.data as data
 import cv2
+import json
+import pandas as pd
 import numpy as np
 
 PETER_CLASSES = ("text")
@@ -18,7 +20,7 @@ PETER_CLASSES = ("text")
 PETER_ROOT = osp.join(HOME, "data/peter/")
 
 
-class VOCAnnotationTransform(object):
+class PeterAnnotationTransform(object):
     """Transforms a VOC annotation into a Tensor of bbox coords and label index
     Initilized with a dictionary lookup of classnames to indexes
 
@@ -31,8 +33,9 @@ class VOCAnnotationTransform(object):
         width (int): width
     """
 
-    def __init__(self, class_to_ind=None, keep_difficult=False):
-        self.class_to_ind = {"text": 0}
+    def __init__(self, anno_df, class_to_ind=None):
+        self.class_to_ind = {"text": 1}
+        self.anno_df = anno_df
 
     def __call__(self, target, width, height):
         """
@@ -43,30 +46,24 @@ class VOCAnnotationTransform(object):
             a list containing lists of bounding boxes  [bbox coords, class name]
         """
         res = []
-        for obj in target.iter('object'):
-            difficult = int(obj.find('difficult').text) == 1
-            if not self.keep_difficult and difficult:
-                continue
-            name = obj.find('name').text.lower().strip()
-            bbox = obj.find('bndbox')
+        bboxes = self.anno_df[self.anno_df["image_id"] == target]["bbox"].to_list()
+        for bbox in bboxes:
 
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
             for i, pt in enumerate(pts):
-                cur_pt = int(bbox.find(pt).text) - 1
+                cur_pt = int(bbox[i]) - 1
                 # scale height or width
-                cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
+                cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height #TODO check if we need it
                 bndbox.append(cur_pt)
-            label_idx = self.class_to_ind[name]
+            label_idx = 1
             bndbox.append(label_idx)
-            res += [bndbox]  # [xmin, ymin, xmax, ymax, label_ind]
-            # img_id = target.find('filename').text[:-4]
-
-        return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
+            res += [bndbox]
+        return res
 
 
-class VOCDetection(data.Dataset):
-    """VOC Detection Dataset Object
+class PeterDetection(data.Dataset):
+    """Peter Detection Dataset Object
 
     input is image, target is annotation
 
@@ -83,21 +80,15 @@ class VOCDetection(data.Dataset):
     """
 
     def __init__(self, root,
-                 image_sets=[('2007', 'trainval'), ('2012', 'trainval')],
-                 transform=None, target_transform=VOCAnnotationTransform(),
-                 dataset_name='VOC0712'):
+                 transform=None, target_transform=PeterAnnotationTransform(),
+                 dataset_name='Peter',
+                 mode = "train"):
         self.root = root
-        self.image_set = image_sets
+        self.image_df, self.anno_df = self.make_tables(osp.join(self.root, "annotations_" + mode + ".json"))
         self.transform = transform
         self.target_transform = target_transform
         self.name = dataset_name
-        self._annopath = osp.join('%s', 'Annotations', '%s.xml')
-        self._imgpath = osp.join('%s', 'JPEGImages', '%s.jpg')
-        self.ids = list()
-        for (year, name) in image_sets:
-            rootpath = osp.join(self.root, 'VOC' + year)
-            for line in open(osp.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
-                self.ids.append((rootpath, line.strip()))
+        self.ids = self.image_df["id"].to_list()
 
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
@@ -106,19 +97,31 @@ class VOCDetection(data.Dataset):
 
     def __len__(self):
         return len(self.ids)
+    
+    def make_tables(self, json_file):
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        f.close()
+
+        image_df = pd.DataFrame(data["images"])
+        anno_df = pd.DataFrame(data["annotations"])
+
+        return image_df, anno_df
 
     def pull_item(self, index):
         img_id = self.ids[index]
 
-        target = ET.parse(self._annopath % img_id).getroot()
-        img = cv2.imread(self._imgpath % img_id)
+        target = self.pull_anno(index)
+        img = self.pull_image(index)
         height, width, channels = img.shape
 
         if self.target_transform is not None:
-            target = self.target_transform(target, width, height)
+            target = self.target_transform(img_id, width, height)
 
         if self.transform is not None:
-            target = np.array(target)
+            if self.target_transform is None:
+                target = self.target_transform(img_id, width, height)
+            target = np.array(self.pull_anno(index))
             img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
             # to rgb
             img = img[:, :, (2, 1, 0)]
@@ -139,7 +142,7 @@ class VOCDetection(data.Dataset):
             PIL img
         '''
         img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        return cv2.imread(osp.join(PETER_ROOT, "images", self.image_df[self.image_df["id"] == img_id]["file_name"].to_string(index=False)), cv2.IMREAD_COLOR)
 
     def pull_anno(self, index):
         '''Returns the original annotation of image at index
@@ -154,9 +157,8 @@ class VOCDetection(data.Dataset):
                 eg: ('001718', [('dog', (96, 13, 438, 332))])
         '''
         img_id = self.ids[index]
-        anno = ET.parse(self._annopath % img_id).getroot()
-        gt = self.target_transform(anno, 1, 1)
-        return img_id[1], gt
+        gt = self.target_transform(img_id, 1, 1)
+        return img_id, gt
 
     def pull_tensor(self, index):
         '''Returns the original image at an index in tensor form
