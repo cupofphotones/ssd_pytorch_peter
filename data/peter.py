@@ -17,7 +17,7 @@ import numpy as np
 
 PETER_CLASSES = ("text")
 
-PETER_ROOT = osp.join(HOME, "data/peter_ds/")
+PETER_ROOT = osp.join(HOME, "data", "peter_ds")
 
 
 class PeterAnnotationTransform(object):
@@ -86,7 +86,7 @@ class PeterDetection(data.Dataset):
         self.root = root
         self.image_df, self.anno_df = self.make_tables(osp.join(self.root, "annotations_" + mode + ".json"))
         self.transform = transform
-        self.target_transform = PeterAnnotationTransform(self.annno_df)
+        self.target_transform = PeterAnnotationTransform(self.anno_df) #TODO this shuld be one of the arguments of constructor
         self.name = dataset_name
         self.ids = self.image_df["id"].to_list()
 

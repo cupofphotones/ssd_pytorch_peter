@@ -92,7 +92,7 @@ def train():
         if args.dataset_root is None:
             parser.error('Must specify dataset if specifying dataset_root')
         cfg = peter
-        dataset = VOCDetection(root=args.dataset_root,
+        dataset = PeterDetection(root=args.dataset_root,
                                transform=SSDAugmentation(cfg['min_dim'],
                                                          MEANS))
 
