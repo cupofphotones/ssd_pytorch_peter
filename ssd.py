@@ -29,7 +29,7 @@ class SSD(nn.Module):
         super(SSD, self).__init__()
         self.phase = phase
         self.num_classes = num_classes
-        self.cfg = (coco, voc)[num_classes == 21]
+        self.cfg = self.get_cfg()
         self.priorbox = PriorBox(self.cfg)
         self.priors = Variable(self.priorbox.forward(), volatile=True)
         self.size = size
@@ -46,6 +46,13 @@ class SSD(nn.Module):
         if phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
             self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
+
+    def get_cfg(self):
+        match self.num_classes:
+            case 21: return voc
+            case 201: return coco
+            case 1: return peter
+            case _: raise Exception("Unknown dataset in self.cfg in ssd")
 
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.

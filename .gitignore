@@ -128,7 +128,7 @@ data/ssd_dataloader.py
 .pylintrc
 
 # ds folders
-data/peter
+data/peter_ds
 
 # drafts
 drafts.ipynb
