@@ -129,3 +129,6 @@ data/ssd_dataloader.py
 
 # ds folders
 data/peter
+
+# drafts
+drafts.ipynb
