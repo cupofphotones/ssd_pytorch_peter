@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(
 train_set = parser.add_mutually_exclusive_group()
 parser.add_argument('--dataset', default='VOC', choices=['VOC', 'COCO', 'Peter'],
                     type=str, help='VOC or COCO')
-parser.add_argument('--dataset_root', default=VOC_ROOT,
+parser.add_argument('--dataset_root', default=None,
                     help='Dataset root directory path')
 parser.add_argument('--basenet', default='vgg16_reducedfc.pth',
                     help='Pretrained base model')
@@ -70,7 +70,7 @@ if not os.path.exists(args.save_folder):
 
 def train():
     if args.dataset == 'COCO':
-        if args.dataset_root == VOC_ROOT:
+        if args.dataset_root is None:
             if not os.path.exists(COCO_ROOT):
                 parser.error('Must specify dataset_root if specifying dataset')
             print("WARNING: Using default COCO dataset_root because " +
@@ -81,7 +81,7 @@ def train():
                                 transform=SSDAugmentation(cfg['min_dim'],
                                                           MEANS))
     elif args.dataset == 'VOC':
-        if args.dataset_root == COCO_ROOT:
+        if args.dataset_root is None:
             parser.error('Must specify dataset if specifying dataset_root')
         cfg = voc
         dataset = VOCDetection(root=args.dataset_root,
@@ -89,7 +89,7 @@ def train():
                                                          MEANS))
         
     elif args.dataset == 'Peter':
-        if args.dataset_root == COCO_ROOT or args.dataset_root == VOC_ROOT:
+        if args.dataset_root == VOC_ROOT:
             parser.error('Must specify dataset if specifying dataset_root')
         cfg = peter
         dataset = VOCDetection(root=args.dataset_root,
