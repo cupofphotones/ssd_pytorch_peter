@@ -126,3 +126,6 @@ data/ssd_dataloader.py
 
 # pylint
 .pylintrc
+
+# ds folders
+data/peter
