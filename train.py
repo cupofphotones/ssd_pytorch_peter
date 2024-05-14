@@ -89,7 +89,7 @@ def train():
                                                          MEANS))
         
     elif args.dataset == 'Peter':
-        if args.dataset_root == VOC_ROOT:
+        if args.dataset_root is None:
             parser.error('Must specify dataset if specifying dataset_root')
         cfg = peter
         dataset = VOCDetection(root=args.dataset_root,
