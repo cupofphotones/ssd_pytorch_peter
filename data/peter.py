@@ -13,9 +13,9 @@ import torch.utils.data as data
 import cv2
 import numpy as np
 
-VOC_CLASSES = ("text")
+PETER_CLASSES = ("text")
 
-VOC_ROOT = osp.join(HOME, "data/peter/")
+PETER_ROOT = osp.join(HOME, "data/peter/")
 
 
 class VOCAnnotationTransform(object):
